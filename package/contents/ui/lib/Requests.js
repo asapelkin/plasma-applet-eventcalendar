@@ -1,10 +1,103 @@
 .pragma library
-// Version 8
+// Version 9
 
-function request(opt, callback) {
-	if (typeof opt === 'string') {
-		opt = { url: opt }
+var executable = null
+var executableListeners = ({})
+
+function wrapToken(token) {
+	token = "" + token
+	token = token.replace(/\'/g, "\'\"\'\"\'")
+	token = "\'" + token + "\'"
+	return token
+}
+
+function getExecutable() {
+	if (executable) {
+		return executable
 	}
+	var qmlSource = ''
+	qmlSource += 'import QtQuick 2.0\n'
+	qmlSource += 'import org.kde.plasma.core 2.0 as PlasmaCore\n'
+	qmlSource += 'PlasmaCore.DataSource {\n'
+	qmlSource += '\tengine: "executable"\n'
+	qmlSource += '\tconnectedSources: []\n'
+	qmlSource += '}'
+	executable = Qt.createQmlObject(qmlSource, Qt.application, "RequestsExecutable")
+	executable.newData.connect(function(sourceName, data) {
+		var listener = executableListeners[sourceName]
+		if (listener) {
+			delete executableListeners[sourceName]
+			listener(data)
+		}
+		executable.disconnectSource(sourceName)
+	})
+	return executable
+}
+
+function exec(cmd, callback) {
+	if (Array.isArray(cmd)) {
+		cmd = cmd.map(wrapToken)
+		cmd = cmd.join(' ')
+	}
+	var executable = getExecutable()
+	executableListeners[cmd] = callback
+	executable.connectSource(cmd)
+}
+
+function isGoogleUrl(url) {
+	return /^https:\/\/(www\.googleapis\.com|accounts\.google\.com)\//.test(url)
+}
+
+function requestViaScript(opt, callback) {
+	var scriptPath = Qt.resolvedUrl('../../scripts/http_request.py')
+	var payload = {
+		method: opt.method || "GET",
+		url: opt.url,
+		headers: opt.headers || {},
+		data: opt.data,
+	}
+	exec(['python3', scriptPath, '--payload', JSON.stringify(payload)], function(data) {
+		var stdout = data["stdout"] || ''
+		var stderr = data["stderr"] || ''
+		var exitCode = data["exit code"] || 0
+		if (exitCode !== 0) {
+			callback("HTTP Error 0", stderr, {
+				status: 0,
+				responseText: stderr,
+				getAllResponseHeaders: function() { return '' },
+			})
+			return
+		}
+
+		var response = { status: 0, body: '' }
+		try {
+			response = JSON.parse(stdout)
+		} catch (e) {
+			callback("HTTP Error 0", stdout, {
+				status: 0,
+				responseText: stdout,
+				getAllResponseHeaders: function() { return '' },
+			})
+			return
+		}
+
+		var req = {
+			status: response.status || 0,
+			responseText: response.body || '',
+			getAllResponseHeaders: function() {
+				return ''
+			},
+		}
+		if (200 <= req.status && req.status < 400) {
+			callback(null, req.responseText, req)
+		} else {
+			var msg = "HTTP Error " + req.status
+			callback(msg, req.responseText, req)
+		}
+	})
+}
+
+function requestViaXmlHttpRequest(opt, callback) {
 	var req = new XMLHttpRequest()
 	req.onerror = function() {
 		// Network Error / No Connection
@@ -32,6 +125,17 @@ function request(opt, callback) {
 		}
 	}
 	req.send(opt.data)
+}
+
+function request(opt, callback) {
+	if (typeof opt === 'string') {
+		opt = { url: opt }
+	}
+	if (isGoogleUrl(opt.url)) {
+		requestViaScript(opt, callback)
+	} else {
+		requestViaXmlHttpRequest(opt, callback)
+	}
 }
 
 function encodeParams(params) {
