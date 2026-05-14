@@ -132,7 +132,8 @@ function requestViaScript(opt, callback) {
 		var exitCode = data["exit code"]
 		if (exitCode !== 0) {
 			var errorText = stderr
-			if ((errorText || '').indexOf('python3') >= 0 && (errorText || '').indexOf('not found') >= 0) {
+			var normalizedErrorText = errorText || ''
+			if (normalizedErrorText.indexOf('python3') >= 0 && normalizedErrorText.indexOf('not found') >= 0) {
 				errorText = 'Python 3 is required for proxy support with Google Calendar API requests'
 			}
 			callback("HTTP Error 0", errorText, buildScriptErrorResponse(errorText))
