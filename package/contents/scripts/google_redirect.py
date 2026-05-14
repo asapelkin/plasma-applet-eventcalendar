@@ -1,6 +1,7 @@
 """Script to handle oauth redirects from Google"""
 
 import json
+import os
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -9,6 +10,18 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 
 client_id = client_secret = listen_port = None
+
+def configure_proxy(http_proxy):
+    if not http_proxy:
+        return
+    proxies = {
+        "http": http_proxy,
+        "https": http_proxy,
+    }
+    os.environ["http_proxy"] = http_proxy
+    os.environ["https_proxy"] = http_proxy
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler(proxies))
+    urllib.request.install_opener(opener)
 
 
 def exchange_code_for_token(code):
@@ -59,10 +72,12 @@ if __name__ == "__main__":
     parser.add_argument("--client_id", required=True)
     parser.add_argument("--client_secret", required=True)
     parser.add_argument("--listen_port", required=True, type=int)
+    parser.add_argument("--http_proxy", default="")
     args = parser.parse_args()
     client_id = args.client_id
     client_secret = args.client_secret
     listen_port = args.listen_port
+    configure_proxy(args.http_proxy)
 
     server_address = ("", listen_port)
     httpd = HTTPServer(server_address, OAuthRedirectHandler)

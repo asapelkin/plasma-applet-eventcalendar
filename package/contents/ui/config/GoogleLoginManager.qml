@@ -92,6 +92,10 @@ Item {
 			"--client_secret", plasmoid.configuration.latestClientSecret,
 			"--listen_port", callbackListenPort.toString(),
 		]
+		if (plasmoid.configuration.httpProxy) {
+			cmd.push("--http_proxy")
+			cmd.push(plasmoid.configuration.httpProxy)
+		}
 
 		Qt.openUrlExternally(authorizationCodeUrl);
 

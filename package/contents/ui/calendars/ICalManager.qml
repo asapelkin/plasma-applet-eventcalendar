@@ -31,11 +31,18 @@ CalendarManager {
 
 	function fetchEvents(calendarData, startTime, endTime, callback) {
 		logger.debug('ical.fetchEvents', calendarData.url)
-		var cmd = 'python3 ' + plasmoid.file("", "scripts/icsjson.py")
-		cmd += ' --url "' + calendarData.url + '"' // TODO proper argument wrapping
-		cmd += ' query'
-		cmd += ' ' + startTime.getFullYear() + '-' + (startTime.getMonth()+1) + '-' + startTime.getDate()
-		cmd += ' ' + endTime.getFullYear() + '-' + (endTime.getMonth()+1) + '-' + endTime.getDate()
+		var cmd = [
+			'python3',
+			plasmoid.file("", "scripts/icsjson.py"),
+			'--url', calendarData.url,
+		]
+		if (plasmoid.configuration.httpProxy) {
+			cmd.push('--http_proxy')
+			cmd.push(plasmoid.configuration.httpProxy)
+		}
+		cmd.push('query')
+		cmd.push(startTime.getFullYear() + '-' + (startTime.getMonth()+1) + '-' + startTime.getDate())
+		cmd.push(endTime.getFullYear() + '-' + (endTime.getMonth()+1) + '-' + endTime.getDate())
 		executable.exec(cmd, function(cmd, exitCode, exitStatus, stdout, stderr) {
 			if (exitCode) {
 				logger.log('ical.stderr', stderr)

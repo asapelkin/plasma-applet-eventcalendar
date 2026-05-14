@@ -332,6 +332,11 @@ ConfigPage {
 		text: i18n("Misc")
 	}
 	ConfigSection {
+		ConfigString {
+			configKey: 'httpProxy'
+			before: i18n("HTTP Proxy:")
+			placeholderText: "http://proxy.example.com:3128"
+		}
 		ConfigCheckBox {
 			configKey: 'showBackground'
 			Layout.fillWidth: true
