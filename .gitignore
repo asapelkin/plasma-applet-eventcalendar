@@ -2,5 +2,6 @@
 *.qmlc
 *.jsc
 *.mo
+*.pyc
 /dist
 /package/metadata.json
