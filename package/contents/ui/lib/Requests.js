@@ -9,8 +9,8 @@ function wrapToken(token) {
 	token = "" + token
 	// Shell-escape single quotes for single-quoted args by:
 	// closing quote + escaped quote + reopening quote: ' -> '"'"'
-	token = token.replace(/\'/g, "\'\"\'\"\'")
-	token = "\'" + token + "\'"
+	token = token.replace(/'/g, "'\"'\"'")
+	token = "'" + token + "'"
 	return token
 }
 
@@ -60,6 +60,7 @@ function requestViaScript(opt, callback) {
 		data: opt.data,
 	}
 	var payloadText = JSON.stringify(payload)
+	// Conservative command-line size guard (well below typical ARG_MAX limits).
 	if (payloadText.length > 32768) {
 		// Avoid hitting command line argument limits for large requests.
 		return requestViaXmlHttpRequest(opt, callback)
@@ -67,6 +68,7 @@ function requestViaScript(opt, callback) {
 	exec(['python3', scriptPath, '--payload', payloadText], function(data) {
 		var stdout = data["stdout"] || ''
 		var stderr = data["stderr"] || ''
+		// DataSource executable engine returns fields like "exit code" and "stdout".
 		if (!("exit code" in data)) {
 			callback("HTTP Error 0", stderr, {
 				status: 0,
