@@ -4,7 +4,7 @@
 var executable = null
 var executableListeners = ({})
 var GOOGLE_URL_PATTERN = /^https:\/\/(www\.googleapis\.com|accounts\.google\.com)\//
-var MAX_SCRIPT_PAYLOAD_SIZE = 32768
+var BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 function wrapToken(token) {
 	token = "" + token
@@ -13,6 +13,27 @@ function wrapToken(token) {
 	token = token.replace(/'/g, "'\"'\"'")
 	token = "'" + token + "'"
 	return token
+}
+
+function toBase64(input) {
+	var str = unescape(encodeURIComponent(input))
+	var output = ''
+	for (var i = 0; i < str.length; i += 3) {
+		var a = str.charCodeAt(i)
+		var b = i + 1 < str.length ? str.charCodeAt(i + 1) : NaN
+		var c = i + 2 < str.length ? str.charCodeAt(i + 2) : NaN
+
+		var v1 = a >> 2
+		var v2 = ((a & 3) << 4) | (isNaN(b) ? 0 : (b >> 4))
+		var v3 = isNaN(b) ? 64 : (((b & 15) << 2) | (isNaN(c) ? 0 : (c >> 6)))
+		var v4 = isNaN(c) ? 64 : (c & 63)
+
+		output += BASE64_CHARS.charAt(v1)
+		output += BASE64_CHARS.charAt(v2)
+		output += v3 === 64 ? '=' : BASE64_CHARS.charAt(v3)
+		output += v4 === 64 ? '=' : BASE64_CHARS.charAt(v4)
+	}
+	return output
 }
 
 function getExecutable() {
@@ -69,12 +90,8 @@ function requestViaScript(opt, callback) {
 		data: opt.data,
 	}
 	var payloadText = JSON.stringify(payload)
-	// Conservative command-line size guard (well below typical ARG_MAX limits).
-	if (payloadText.length > MAX_SCRIPT_PAYLOAD_SIZE) {
-		// Avoid hitting command line argument limits for large requests.
-		return requestViaXmlHttpRequest(opt, callback)
-	}
-	exec(['python3', scriptPath, '--payload', payloadText], function(data) {
+	var payloadBase64 = toBase64(payloadText)
+	exec(['python3', scriptPath, '--payload-base64', payloadBase64], function(data) {
 		var stdout = data["stdout"] || ''
 		var stderr = data["stderr"] || ''
 		// DataSource executable engine returns fields like "exit code" and "stdout".
