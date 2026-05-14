@@ -7,7 +7,8 @@ var GOOGLE_URL_PATTERN = /^https:\/\/(www\.googleapis\.com|accounts\.google\.com
 
 function wrapToken(token) {
 	token = "" + token
-	// Escape single quotes for shell-safe single-quoted args: ' -> '"'"'
+	// Shell-escape single quotes for single-quoted args by:
+	// closing quote + escaped quote + reopening quote: ' -> '"'"'
 	token = token.replace(/\'/g, "\'\"\'\"\'")
 	token = "\'" + token + "\'"
 	return token
@@ -58,10 +59,23 @@ function requestViaScript(opt, callback) {
 		headers: opt.headers || {},
 		data: opt.data,
 	}
-	exec(['python3', scriptPath, '--payload', JSON.stringify(payload)], function(data) {
+	var payloadText = JSON.stringify(payload)
+	if (payloadText.length > 32768) {
+		// Avoid hitting command line argument limits for large requests.
+		return requestViaXmlHttpRequest(opt, callback)
+	}
+	exec(['python3', scriptPath, '--payload', payloadText], function(data) {
 		var stdout = data["stdout"] || ''
 		var stderr = data["stderr"] || ''
-		var exitCode = data["exit code"] || 0
+		if (!("exit code" in data)) {
+			callback("HTTP Error 0", stderr, {
+				status: 0,
+				responseText: stderr,
+				getAllResponseHeaders: function() { return '' },
+			})
+			return
+		}
+		var exitCode = data["exit code"]
 		if (exitCode !== 0) {
 			callback("HTTP Error 0", stderr, {
 				status: 0,
