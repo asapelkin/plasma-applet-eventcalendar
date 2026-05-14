@@ -3,9 +3,11 @@
 
 var executable = null
 var executableListeners = ({})
+var GOOGLE_URL_PATTERN = /^https:\/\/(www\.googleapis\.com|accounts\.google\.com)\//
 
 function wrapToken(token) {
 	token = "" + token
+	// Escape single quotes for shell-safe single-quoted args: ' -> '"'"'
 	token = token.replace(/\'/g, "\'\"\'\"\'")
 	token = "\'" + token + "\'"
 	return token
@@ -45,7 +47,7 @@ function exec(cmd, callback) {
 }
 
 function isGoogleUrl(url) {
-	return /^https:\/\/(www\.googleapis\.com|accounts\.google\.com)\//.test(url)
+	return GOOGLE_URL_PATTERN.test(url)
 }
 
 function requestViaScript(opt, callback) {
