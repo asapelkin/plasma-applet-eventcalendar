@@ -33,7 +33,7 @@ def main():
 	try:
 		req = urllib.request.Request(url, data=data, headers=headers, method=method)
 		with urllib.request.urlopen(req) as response:
-			status = response.getcode() or 0
+			status = response.getcode()
 			body = response.read().decode("utf-8", errors="replace")
 	except urllib.error.HTTPError as err:
 		status = err.code or 0

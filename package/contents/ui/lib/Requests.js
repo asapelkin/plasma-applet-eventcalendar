@@ -4,6 +4,7 @@
 var executable = null
 var executableListeners = ({})
 var GOOGLE_URL_PATTERN = /^https:\/\/(www\.googleapis\.com|accounts\.google\.com)\//
+var MAX_SCRIPT_PAYLOAD_SIZE = 32768
 
 function wrapToken(token) {
 	token = "" + token
@@ -51,6 +52,14 @@ function isGoogleUrl(url) {
 	return GOOGLE_URL_PATTERN.test(url)
 }
 
+function buildScriptErrorResponse(body) {
+	return {
+		status: 0,
+		responseText: body || '',
+		getAllResponseHeaders: function() { return '' },
+	}
+}
+
 function requestViaScript(opt, callback) {
 	var scriptPath = Qt.resolvedUrl('../../scripts/http_request.py')
 	var payload = {
@@ -61,7 +70,7 @@ function requestViaScript(opt, callback) {
 	}
 	var payloadText = JSON.stringify(payload)
 	// Conservative command-line size guard (well below typical ARG_MAX limits).
-	if (payloadText.length > 32768) {
+	if (payloadText.length > MAX_SCRIPT_PAYLOAD_SIZE) {
 		// Avoid hitting command line argument limits for large requests.
 		return requestViaXmlHttpRequest(opt, callback)
 	}
@@ -70,20 +79,12 @@ function requestViaScript(opt, callback) {
 		var stderr = data["stderr"] || ''
 		// DataSource executable engine returns fields like "exit code" and "stdout".
 		if (!("exit code" in data)) {
-			callback("HTTP Error 0", stderr, {
-				status: 0,
-				responseText: stderr,
-				getAllResponseHeaders: function() { return '' },
-			})
+			callback("HTTP Error 0", stderr, buildScriptErrorResponse(stderr))
 			return
 		}
 		var exitCode = data["exit code"]
 		if (exitCode !== 0) {
-			callback("HTTP Error 0", stderr, {
-				status: 0,
-				responseText: stderr,
-				getAllResponseHeaders: function() { return '' },
-			})
+			callback("HTTP Error 0", stderr, buildScriptErrorResponse(stderr))
 			return
 		}
 
@@ -91,11 +92,7 @@ function requestViaScript(opt, callback) {
 		try {
 			response = JSON.parse(stdout)
 		} catch (e) {
-			callback("HTTP Error 0", stdout, {
-				status: 0,
-				responseText: stdout,
-				getAllResponseHeaders: function() { return '' },
-			})
+			callback("HTTP Error 0", stdout, buildScriptErrorResponse(stdout))
 			return
 		}
 
