@@ -109,11 +109,24 @@ def argparse_date(s):
 		msg = "Not a valid date: '{0}'.".format(s)
 		raise argparse.ArgumentTypeError(msg)
 
+def configure_proxy(http_proxy):
+	if not http_proxy:
+		return
+	proxies = {
+		'http': http_proxy,
+		'https': http_proxy,
+	}
+	os.environ['http_proxy'] = http_proxy
+	os.environ['https_proxy'] = http_proxy
+	opener = urllib.request.build_opener(urllib.request.ProxyHandler(proxies))
+	urllib.request.install_opener(opener)
+
 if __name__ == '__main__':
 	import argparse
 
-	parser = argparse.ArgumentParser(description="calculate X to the power of Y")
+	parser = argparse.ArgumentParser(description="Parse and query iCalendar (.ics) files")
 	parser.add_argument("--url", type=str, required=True, help="The .ics file to read/write")
+	parser.add_argument("--http_proxy", type=str, default='', help="HTTP proxy URL")
 	subparsers = parser.add_subparsers(help='Commands', dest='subcommand')
 
 	query = subparsers.add_parser('query')
@@ -131,6 +144,7 @@ if __name__ == '__main__':
 		args = parser.parse_args()
 
 	url = urllib.parse.urlparse(args.url, scheme='file').geturl()
+	configure_proxy(args.http_proxy)
 
 	manager = CalendarManager(url)
 	if args.subcommand == 'query':
@@ -142,6 +156,4 @@ if __name__ == '__main__':
 		pass
 	elif args.subcommand == 'delete':
 		pass
-
-
 
