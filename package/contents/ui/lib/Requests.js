@@ -15,13 +15,43 @@ function wrapToken(token) {
 	return token
 }
 
+function utf8Bytes(input) {
+	var bytes = []
+	for (var i = 0; i < input.length; i++) {
+		var codePoint = input.charCodeAt(i)
+		if (0xD800 <= codePoint && codePoint <= 0xDBFF && i + 1 < input.length) {
+			var low = input.charCodeAt(i + 1)
+			if (0xDC00 <= low && low <= 0xDFFF) {
+				codePoint = ((codePoint - 0xD800) << 10) + (low - 0xDC00) + 0x10000
+				i += 1
+			}
+		}
+		if (codePoint <= 0x7F) {
+			bytes.push(codePoint)
+		} else if (codePoint <= 0x7FF) {
+			bytes.push(0xC0 | (codePoint >> 6))
+			bytes.push(0x80 | (codePoint & 0x3F))
+		} else if (codePoint <= 0xFFFF) {
+			bytes.push(0xE0 | (codePoint >> 12))
+			bytes.push(0x80 | ((codePoint >> 6) & 0x3F))
+			bytes.push(0x80 | (codePoint & 0x3F))
+		} else {
+			bytes.push(0xF0 | (codePoint >> 18))
+			bytes.push(0x80 | ((codePoint >> 12) & 0x3F))
+			bytes.push(0x80 | ((codePoint >> 6) & 0x3F))
+			bytes.push(0x80 | (codePoint & 0x3F))
+		}
+	}
+	return bytes
+}
+
 function toBase64(input) {
-	var str = unescape(encodeURIComponent(input))
 	var output = ''
-	for (var i = 0; i < str.length; i += 3) {
-		var a = str.charCodeAt(i)
-		var b = i + 1 < str.length ? str.charCodeAt(i + 1) : NaN
-		var c = i + 2 < str.length ? str.charCodeAt(i + 2) : NaN
+	var bytes = utf8Bytes(input)
+	for (var i = 0; i < bytes.length; i += 3) {
+		var a = bytes[i]
+		var b = i + 1 < bytes.length ? bytes[i + 1] : NaN
+		var c = i + 2 < bytes.length ? bytes[i + 2] : NaN
 
 		var v1 = a >> 2
 		var v2 = ((a & 3) << 4) | (isNaN(b) ? 0 : (b >> 4))
@@ -101,7 +131,11 @@ function requestViaScript(opt, callback) {
 		}
 		var exitCode = data["exit code"]
 		if (exitCode !== 0) {
-			callback("HTTP Error 0", stderr, buildScriptErrorResponse(stderr))
+			var errorText = stderr
+			if ((errorText || '').indexOf('python3') >= 0 && (errorText || '').indexOf('not found') >= 0) {
+				errorText = 'Python 3 is required for proxy support with Google Calendar API requests'
+			}
+			callback("HTTP Error 0", errorText, buildScriptErrorResponse(errorText))
 			return
 		}
 
