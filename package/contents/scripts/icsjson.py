@@ -124,7 +124,7 @@ def configure_proxy(http_proxy):
 if __name__ == '__main__':
 	import argparse
 
-	parser = argparse.ArgumentParser(description="calculate X to the power of Y")
+	parser = argparse.ArgumentParser(description="Parse and query iCalendar (.ics) files")
 	parser.add_argument("--url", type=str, required=True, help="The .ics file to read/write")
 	parser.add_argument("--http_proxy", type=str, default='', help="HTTP proxy URL")
 	subparsers = parser.add_subparsers(help='Commands', dest='subcommand')
@@ -156,5 +156,4 @@ if __name__ == '__main__':
 		pass
 	elif args.subcommand == 'delete':
 		pass
-
 
